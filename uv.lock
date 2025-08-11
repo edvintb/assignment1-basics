@@ -117,6 +117,7 @@ source = { editable = "." }
 dependencies = [
     { name = "einops" },
     { name = "einx" },
+    { name = "ipykernel" },
     { name = "jaxtyping" },
     { name = "numpy" },
     { name = "psutil" },
@@ -135,6 +136,7 @@ dependencies = [
 requires-dist = [
     { name = "einops", specifier = ">=0.8.1" },
     { name = "einx", specifier = ">=0.3.0" },
+    { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "jaxtyping", specifier = ">=0.3.0" },
     { name = "numpy" },
     { name = "psutil", specifier = ">=6.1.1" },

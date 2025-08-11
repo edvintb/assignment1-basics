@@ -166,6 +166,3 @@ cython_debug/
 data/
 *.ipynb
 *.json
-uv.lock
-*.png
-checkpoints/*
