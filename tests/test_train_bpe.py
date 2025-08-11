@@ -14,6 +14,7 @@ def test_train_bpe_speed():
     takes around 3 seconds.
     """
     input_path = FIXTURES_PATH / "corpus.en"
+    print(input_path)
     start_time = time.time()
     _, _ = run_train_bpe(
         input_path=input_path,
@@ -21,7 +22,8 @@ def test_train_bpe_speed():
         special_tokens=["<|endoftext|>"],
     )
     end_time = time.time()
-    assert end_time - start_time < 1.5
+    total_time = end_time - start_time
+    assert total_time < 1.5
 
 
 def test_train_bpe():
