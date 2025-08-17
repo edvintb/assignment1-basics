@@ -181,7 +181,7 @@ def test_ascii_string_matches_tiktoken():
 
     reference_ids = reference_tokenizer.encode(test_string)
     ids = tokenizer.encode(test_string)
-    # assert ids == reference_ids
+    assert ids == reference_ids
 
     tokenized_string = [tokenizer.decode([x]) for x in ids]
     assert tokenized_string == ["Hello", ",", " how", " are", " you", "?"]
@@ -462,3 +462,12 @@ def _encode(tokenizer, text):
     for just this function. We set the memory limit to 1MB.
     """
     return tokenizer.encode(text)
+
+
+if __name__ == "__main__":
+    test_single_character_matches_tiktoken()
+    test_roundtrip_single_character()
+    test_address_matches_tiktoken()
+    test_address_roundtrip()
+    test_german_matches_tiktoken()
+    test_german_roundtrip()
