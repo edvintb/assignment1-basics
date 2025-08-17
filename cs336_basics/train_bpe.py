@@ -1,7 +1,7 @@
 import json
 import os
-from typing import Iterable, Iterator, NamedTuple
-import numpy as np
+from collections.abc import Iterator
+from typing import NamedTuple
 import regex as re  # use regex instead of re
 import cProfile
 import pstats
@@ -12,6 +12,7 @@ import argparse
 from multiprocessing import Pool
 
 from cs336_basics.pretokenization_example import find_chunk_boundaries
+from cs336_basics.common import perform_merge
 
 # setup the type aliases
 # important to expclicitly map objects to datatypes
@@ -19,15 +20,18 @@ VocabElt = bytes
 Pretoken = tuple[VocabElt, ...]
 VocabPair = tuple[VocabElt, VocabElt]
 
+
 class PretokenArgs(NamedTuple):
     path: str | os.PathLike
     special_tokens: list[bytes]
     start: int
     end: int
 
+
 def pretoken2pairs(pretoken: Pretoken) -> Iterator[VocabPair]:
     """Given a pretoken, return a set of all byte pairs in the pretoken."""
     return zip(pretoken[:-1], pretoken[1:])
+
 
 def get_byte_corpus_for_chunk(args: PretokenArgs) -> Counter[Pretoken]:
     """Given a chunk of bytes and special tokens as bytes, return a Counter of byte tuples."""
@@ -90,19 +94,15 @@ def train_bpe(
     # prepare arguments for pretokenization
     special_tokens_bytes: list[bytes] = [token.encode("utf-8") for token in special_tokens]
     pretoken_args = [
-        PretokenArgs(
-            path=input_path,
-            special_tokens=special_tokens_bytes,
-            start=start,
-            end=end
-        ) for start, end in zip(boundaries[:-1], boundaries[1:])
+        PretokenArgs(path=input_path, special_tokens=special_tokens_bytes, start=start, end=end)
+        for start, end in zip(boundaries[:-1], boundaries[1:])
     ]
 
     # pretokenize in parallel
     print(f"Pre-tokenizing corpus with {num_processes} processes...")
     with Pool(num_processes) as pool:
         byte_corpus = sum(pool.imap_unordered(get_byte_corpus_for_chunk, pretoken_args), Counter())
-    
+
     print("Done pre-tokenizing corpus.")
 
     # a list to track the merges we make
@@ -111,7 +111,6 @@ def train_bpe(
     # initialize the data structures we need to keep track of pairs
     pair_to_pretokens, pair_to_count = initialize_aux_mappings(byte_corpus)
     for _ in tqdm(range(total_merges), desc="Training BPE", unit=" merges"):
-
         # get the next pair to merge
         merge_pair = get_next_byte_pair(pair_to_count)
 
@@ -134,6 +133,7 @@ def train_bpe(
         )
 
     return vocab, merges
+
 
 def initialize_aux_mappings(
     corpus: Counter[Pretoken],
@@ -160,6 +160,7 @@ def initialize_aux_mappings(
 
     return pair_to_pretokens, pair_to_count
 
+
 def get_next_byte_pair(
     pair_to_count: Counter[VocabPair],
 ) -> VocabPair | None:
@@ -181,26 +182,13 @@ def get_next_byte_pair(
             top_pairs = {pair}
         elif count == max_count:
             top_pairs.add(pair)
-    
+
     if len(top_pairs) == 0:
         return None
 
     next_pair = max(top_pairs)
     return next_pair
 
-def perform_merge(pretoken: Pretoken, pair_to_merge: VocabPair) -> Pretoken:
-    """Merge a pair of bytes in a pretoken."""
-    i = 0
-    new_pretoken = []
-    while i < len(pretoken):
-        if i < len(pretoken) - 1 and pretoken[i] == pair_to_merge[0] and pretoken[i + 1] == pair_to_merge[1]:
-            new_pretoken.append(pair_to_merge[0] + pair_to_merge[1])
-            i += 2
-        else:
-            new_pretoken.append(pretoken[i])
-            i += 1
-        
-    return tuple(new_pretoken)
 
 def updates_for_pair(
     merge_pair: VocabPair,
@@ -222,7 +210,6 @@ def updates_for_pair(
             if old_pretoken in pair_to_pretokens[pair]:
                 # remove the old pretoken from the pair_to_pretokens
                 pair_to_pretokens[pair].remove(old_pretoken)
-                
 
         # merge the vocab elements to create the new pretoken
         new_pretoken = perform_merge(old_pretoken, merge_pair)
@@ -236,7 +223,7 @@ def updates_for_pair(
 
             # add the new pretoken to the pair_to_pretokens
             pair_to_pretokens[pair].add(new_pretoken)
-        
+
     # we should have removed all instances of the merged pair
     # assert (pair_to_count[merge_pair] == 0), f"Pair count for {merge_pair} is not zero: {pair_to_count[merge_pair]}"
 
@@ -266,18 +253,20 @@ def pretokenize_chunk(chunk: bytes, special_tokens: list[bytes]) -> Counter[byte
 
     return pretoken_to_count
 
+
 def serialize_vocab(vocab: dict[int, bytes], filepath: str) -> None:
     """Serialize vocab to JSON with bytes as UTF-8 strings where possible."""
     vocab_serializable = {}
     for k, v in vocab.items():
         try:
-            vocab_serializable[k] = v.decode('utf-8')
+            vocab_serializable[k] = v.decode("utf-8")
         except UnicodeDecodeError:
             # Fall back to hex for invalid UTF-8 sequences
             vocab_serializable[k] = f"<HEX:{v.hex()}>"
-    
+
     with open(filepath, "w") as f:
         json.dump(vocab_serializable, f, indent=2, ensure_ascii=False)
+
 
 def serialize_merges(merges: list[tuple[bytes, bytes]], filepath: str) -> None:
     """Serialize merges to JSON with bytes as UTF-8 strings where possible."""
@@ -286,19 +275,20 @@ def serialize_merges(merges: list[tuple[bytes, bytes]], filepath: str) -> None:
         serialized_pair = []
         for token in pair:
             try:
-                serialized_pair.append(token.decode('utf-8'))
+                serialized_pair.append(token.decode("utf-8"))
             except UnicodeDecodeError:
                 serialized_pair.append(f"<HEX:{token.hex()}>")
         merges_serializable.append(serialized_pair)
-    
+
     with open(filepath, "w") as f:
         json.dump(merges_serializable, f, indent=2, ensure_ascii=False)
+
 
 def deserialize_vocab(filepath: str) -> dict[int, bytes]:
     """Deserialize vocab from JSON with hex strings back to bytes."""
     with open(filepath, "r") as f:
         loaded = json.load(f)
-    
+
     vocab = {}
     for k, v in loaded.items():
         if v.startswith("<HEX:") and v.endswith(">"):
@@ -307,15 +297,16 @@ def deserialize_vocab(filepath: str) -> dict[int, bytes]:
             vocab[int(k)] = bytes.fromhex(hex_str)
         else:
             # Regular UTF-8 string, encode back to bytes
-            vocab[int(k)] = v.encode('utf-8')
-    
+            vocab[int(k)] = v.encode("utf-8")
+
     return vocab
+
 
 def deserialize_merges(filepath: str) -> list[tuple[bytes, bytes]]:
     """Deserialize merges from JSON with hex strings back to bytes."""
     with open(filepath, "r") as f:
         loaded = json.load(f)
-    
+
     merges = []
     for pair in loaded:
         decoded_pair = []
@@ -326,10 +317,11 @@ def deserialize_merges(filepath: str) -> list[tuple[bytes, bytes]]:
                 decoded_pair.append(bytes.fromhex(hex_str))
             else:
                 # Regular UTF-8 string, encode back to bytes
-                decoded_pair.append(token.encode('utf-8'))
+                decoded_pair.append(token.encode("utf-8"))
         merges.append(tuple(decoded_pair))
-    
+
     return merges
+
 
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     """Parse command-line arguments."""
@@ -338,6 +330,7 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--vocab_size", type=int, required=True)
     parser.add_argument("--special_tokens", type=str, nargs="*", default=[])
     return parser.parse_args(args)
+
 
 def main(args: argparse.Namespace) -> None:
     # Create a Profile object
@@ -369,109 +362,10 @@ def main(args: argparse.Namespace) -> None:
 
     # serialize the vocab as a json file
     serialize_vocab(vocab, "vocab.json")
-    
+
     # serialize the merges as a json file
     serialize_merges(merges, "merges.json")
-    
+
 
 if __name__ == "__main__":
     main(parse_args())
-
-# if __name__ == "__old_main__":
-#     # we start the vocab with all bytes
-#     vocab: dict[int, bytes] = {i: bytes([i]) for i in range(256)}
-#     print(sorted(vocab.items()))
-
-#     # some text to test the functions
-#     test_text: str = "some example text I'll need to pretokenize here<|endoftext|>some more text"
-
-#     # pre-tokenize the text -- this will be the corpus
-#     pretokens_for_docs: list[list[str]] = pretokenize_chunk(test_text, ["<|endoftext|>"])
-#     print(pretokens_for_docs)
-
-#     # create the corpus from the pre-tokenized text
-#     corpus: Counter[str] = Counter([pretoken for doc in pretokens_for_docs for pretoken in doc])
-#     byte_corpus: Counter[bytes] = Counter({(" ".join(key)).encode("utf-8"): value for key, value in corpus.items()})
-
-#     print(byte_corpus)
-#     # exit()
-#     max_vocab_size: int = 266
-
-#     for i in range(max_vocab_size - len(vocab)):
-#         # get the counts for each byte pair
-#         byte_pair_counts: Counter[tuple[bytes, bytes]] = get_top_byte_pair(byte_corpus)
-
-#         # get the most common byte pair and its count
-#         byte_pair, pair_count = byte_pair_counts.most_common(1)[0]
-#         print(f"Top pair: {b''.join(byte_pair).decode('utf-8')}, count: {pair_count}")
-
-#         # update the corpus and vocab
-#         byte_corpus = update_pretokens_in_corpus(byte_corpus, byte_pair)
-#         vocab[len(vocab)] = byte_pair
-
-#     print(byte_corpus)
-#     print(vocab)
-
-# def get_next_byte_pair(
-#     curr_byte_pair: tuple[bytes, bytes],
-#     pair_to_count: Counter[tuple[bytes, bytes]],
-#     pair_to_pretokens: dict[tuple[bytes, bytes], set[tuple[bytes, ...]]],
-#     pretoken_to_count: Counter[tuple[bytes, ...]],
-# ) -> tuple[tuple[bytes, bytes], set[tuple[bytes, ...]]]:
-#     """Given a corpus and the previous pair and its count, return the next pair to merge."""
-#     # remove the merged pair from the counts
-#     del pair_to_count[curr_byte_pair]
-#
-#     # update counts for neighbor pairs and update the pair_to_pretokens
-#     # we must also update the pair_to_pretokens to reflect the new pair
-#     for pretoken, count in pretoken_to_count.items():
-#         for i in range(len(pretoken) - 1):
-#             curr_pair: tuple[bytes, bytes] = (pretoken[i], pretoken[i + 1])
-#             if curr_pair != curr_byte_pair:
-#                 # we only update when we find the current pair
-#                 continue
-#             # update the counts for neighbor pairs
-#             if i == 0 and i < len(pretoken) - 2:
-#                 # The neighbor has been removed
-#                 next_pair: tuple[bytes, bytes] = (pretoken[i + 1], pretoken[i + 2])
-#                 pair_to_count[next_pair] -= count
-#                 pair_to_pretokens[next_pair].remove(pretoken)
-#                 # a new pair has been created
-#                 new_pair = (b"".join(curr_pair), pretoken[i + 2])
-#                 pair_to_count[new_pair] += count
-#                 pair_to_pretokens[new_pair].add(pretoken)
-#             if i == len(pretoken) - 3 and i > 0:
-#                 # The neighbor has been removed
-#                 prev_pair: tuple[bytes, bytes] = (pretoken[i - 1], pretoken[i])
-#                 pair_to_count[prev_pair] -= count
-#                 pair_to_pretokens[prev_pair].remove(pretoken)
-#                 # a new pair has been created
-#                 new_pair = (pretoken[i - 1], b"".join(curr_pair))
-#                 pair_to_count[new_pair] += count
-#                 pair_to_pretokens[new_pair].add(pretoken)
-#
-#     max_count = max(pair_to_count.values())
-#     top_pairs: set[tuple[bytes, bytes]] = {pair for pair, count in pair_to_count.items() if count == max_count}
-#     next_pair = max(top_pairs)
-#
-#     return next_pair, pair_to_count, pair_to_pretokens
-#
-
-
-# def update_pretokens_in_corpus(
-#     corpus: Counter[Pretoken], pair_to_merge: VocabPair, pretokens_with_pair: Iterable[Pretoken]
-# ) -> Counter[Pretoken]:
-#     """Given a vocabulary and a pair of bytes, update the vocabulary by merging the pair."""
-#     for pretoken in pretokens_with_pair:
-#         assert type(pretoken) == tuple, f"Pretoken is not a tuple: {pretoken}"
-#         i = 0
-#         new_pretoken = []
-#         while i < len(pretoken):
-#             if i < len(pretoken) - 1 and pretoken[i] == pair_to_merge[0] and pretoken[i + 1] == pair_to_merge[1]:
-#                 new_pretoken.append(pair_to_merge[0] + pair_to_merge[1])
-#                 i += 2
-#             else:
-#                 new_pretoken.append(pretoken[i])
-#                 i += 1
-#         corpus[tuple(new_pretoken)] = corpus.pop(pretoken)
-#     return corpus
