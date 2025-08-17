@@ -1,18 +1,19 @@
+import argparse
+import cProfile
 import json
 import os
-from collections.abc import Iterator
-from typing import NamedTuple
-import regex as re  # use regex instead of re
-import cProfile
 import pstats
-from pstats import SortKey
 from collections import Counter, defaultdict
-from tqdm import tqdm
-import argparse
+from collections.abc import Iterator
 from multiprocessing import Pool
+from pstats import SortKey
+from typing import NamedTuple
 
-from cs336_basics.pretokenization_example import find_chunk_boundaries
+import regex as re  # use regex instead of re
+from tqdm import tqdm
+
 from cs336_basics.common import perform_merge
+from cs336_basics.pretokenization_example import find_chunk_boundaries
 
 # setup the type aliases
 # important to expclicitly map objects to datatypes
@@ -89,7 +90,7 @@ def train_bpe(
     num_processes = max(cpu_count - 1, 1)
     with open(input_path, "rb") as f:
         # we will add the code to split this into chunks, even though we might not need it
-        boundaries = find_chunk_boundaries(f, num_processes, "<|endoftext|>".encode("utf-8"))
+        boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
 
     # prepare arguments for pretokenization
     special_tokens_bytes: list[bytes] = [token.encode("utf-8") for token in special_tokens]
@@ -286,7 +287,7 @@ def serialize_merges(merges: list[tuple[bytes, bytes]], filepath: str) -> None:
 
 def deserialize_vocab(filepath: str) -> dict[int, bytes]:
     """Deserialize vocab from JSON with hex strings back to bytes."""
-    with open(filepath, "r") as f:
+    with open(filepath) as f:
         loaded = json.load(f)
 
     vocab = {}
@@ -304,7 +305,7 @@ def deserialize_vocab(filepath: str) -> dict[int, bytes]:
 
 def deserialize_merges(filepath: str) -> list[tuple[bytes, bytes]]:
     """Deserialize merges from JSON with hex strings back to bytes."""
-    with open(filepath, "r") as f:
+    with open(filepath) as f:
         loaded = json.load(f)
 
     merges = []
@@ -329,10 +330,28 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--input_path", type=str, required=True)
     parser.add_argument("--vocab_size", type=int, required=True)
     parser.add_argument("--special_tokens", type=str, nargs="*", default=[])
+    parser.add_argument("--profile", action="store_true", help="Enable profiling")
     return parser.parse_args(args)
 
 
 def main(args: argparse.Namespace) -> None:
+    print("Training BPE tokenizer...")
+    print(f"Input path: {args.input_path}")
+    print(f"Vocab size: {args.vocab_size:,}")
+    print(f"Special tokens: {args.special_tokens}")
+    vocab, merges = train_bpe(
+        input_path=args.input_path, vocab_size=args.vocab_size, special_tokens=args.special_tokens
+    )
+
+    print("Done training BPE tokenizer.")
+
+    # serialize the vocab as a json file
+    serialize_vocab(vocab, "vocab.json")
+
+    # serialize the merges as a json file
+    serialize_merges(merges, "merges.json")
+
+def main_profile(args: argparse.Namespace) -> None:
     # Create a Profile object
     profiler = cProfile.Profile()
     profiler.enable()
