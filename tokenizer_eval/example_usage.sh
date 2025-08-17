@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Example usage commands for tokenizer evaluation scripts
+# Run these commands from the project root directory
+
+echo "=== Tokenizer Evaluation Example Usage ==="
+echo ""
+
+echo "1. Basic analysis with TinyStories tokenizer (10 samples, default seed):"
+echo "uv run tokenizer_eval/sample_and_analyze.py --vocab-file ts-vocab.json --merges-file ts-merges.json"
+echo ""
+
+echo "2. Basic analysis with OpenWebText tokenizer:"
+echo "uv run tokenizer_eval/sample_and_analyze.py --vocab-file owt-vocab.json --merges-file owt-merges.json"
+echo ""
+
+echo "3. Custom analysis with 5 samples and specific random seed:"
+echo "uv run tokenizer_eval/sample_and_analyze.py \\"
+echo "    --vocab-file ts-vocab.json \\"
+echo "    --merges-file ts-merges.json \\"
+echo "    --num-samples 5 \\"
+echo "    --random-seed 123"
+echo ""
+
+echo "4. Analysis with custom dataset paths:"
+echo "uv run tokenizer_eval/sample_and_analyze.py \\"
+echo "    --vocab-file ts-vocab.json \\"
+echo "    --merges-file ts-merges.json \\"
+echo "    --tinystories-path /path/to/tinystories.txt \\"
+echo "    --owt-path /path/to/openwebtext.txt"
+echo ""
+
+echo "5. Detailed analysis with TinyStories tokenizer (3 samples by default):"
+echo "uv run tokenizer_eval/detailed_analysis.py --vocab-file ts-vocab.json --merges-file ts-merges.json"
+echo ""
+
+echo "6. Detailed analysis with custom parameters:"
+echo "uv run tokenizer_eval/detailed_analysis.py \\"
+echo "    --vocab-file owt-vocab.json \\"
+echo "    --merges-file owt-merges.json \\"
+echo "    --num-samples 2 \\"
+echo "    --random-seed 456 \\"
+echo "    --read-size 100000"
+echo ""
+
+echo "7. Compare different tokenizers (run both and compare results):"
+echo "echo 'TinyStories tokenizer results:'"
+echo "uv run tokenizer_eval/sample_and_analyze.py --vocab-file ts-vocab.json --merges-file ts-merges.json --num-samples 10"
+echo "echo ''"
+echo "echo 'OpenWebText tokenizer results:'"
+echo "uv run tokenizer_eval/sample_and_analyze.py --vocab-file owt-vocab.json --merges-file owt-merges.json --num-samples 10"
+echo ""
+
+echo "8. Running from within tokenizer_eval directory:"
+echo "cd tokenizer_eval"
+echo "uv run sample_and_analyze.py --vocab-file ../ts-vocab.json --merges-file ../ts-merges.json"
+echo "uv run detailed_analysis.py --vocab-file ../owt-vocab.json --merges-file ../owt-merges.json"
+echo ""
+
+echo "=== Parameter Explanations ==="
+echo ""
+echo "--vocab-file: Path to vocabulary JSON file (required)"
+echo "--merges-file: Path to merges JSON file (required)"
+echo "--num-samples: Number of documents to sample/analyze (default: 10 for sample_and_analyze.py, 3 for detailed_analysis.py)"
+echo "--random-seed: Random seed for reproducibility (default: 42)"
+echo "--tinystories-path: Path to TinyStories dataset (default: data/TinyStoriesV2-GPT4-train.txt)"
+echo "--owt-path: Path to OpenWebText dataset (default: data/owt_train.txt)"
+echo "--read-size: [detailed_analysis.py only] Bytes to read from each dataset (default: 50000)"
+echo ""
+
+echo "=== Quick Start ==="
+echo ""
+echo "# Most common usage - analyze with TinyStories tokenizer:"
+echo "uv run tokenizer_eval/sample_and_analyze.py --vocab-file ts-vocab.json --merges-file ts-merges.json"
+echo ""
+echo "# Get detailed token-level analysis:"
+echo "uv run tokenizer_eval/detailed_analysis.py --vocab-file ts-vocab.json --merges-file ts-merges.json"
+echo ""
+
+echo "=== Available Tokenizer Files ==="
+echo "Based on your project structure:"
+echo "- ts-vocab.json, ts-merges.json (TinyStories tokenizer, vocab size: 10000)"
+echo "- owt-vocab.json, owt-merges.json (OpenWebText tokenizer, vocab size: 32000)"
