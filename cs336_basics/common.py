@@ -1,5 +1,6 @@
 import os
 import json
+import regex
 from multiprocessing import Pool
 from collections.abc import Iterator
 
@@ -9,6 +10,10 @@ VocabElt = bytes
 Pretoken = tuple[VocabElt, ...]
 VocabPair = tuple[VocabElt, VocabElt]
 
+# GPT-2 regex pattern as bytes
+PRETOKEN_BYTES_REGEX = regex.compile(
+    rb"""'(?:[sdmt]|ll|ve|re)|\ ?\p{L}+|\ ?\p{N}+|\ ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+)
 
 def perform_merge(pretoken: Pretoken, pair_to_merge: VocabPair) -> Pretoken:
     """Merge a pair of bytes in a pretoken."""
