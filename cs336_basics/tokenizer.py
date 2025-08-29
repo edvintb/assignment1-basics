@@ -1,7 +1,7 @@
 import regex
 from collections.abc import Iterable, Iterator  # Iterable has an __iter__ method that returns an iterator
 
-from .common import deserialize_merges, deserialize_vocab, pretoken2pairs, perform_merge
+from .common import deserialize_merges, deserialize_vocab, pretoken2pairs, perform_merge, PRETOKEN_BYTES_REGEX
 
 
 class Tokenizer:
@@ -16,11 +16,9 @@ class Tokenizer:
         if special_tokens is not None:
             self.special_token_bytes = b"|".join([special_token.encode("utf-8") for special_token in special_tokens])
             self.special_token_regex = regex.compile(self.special_token_bytes)
+        
+        self.pretoken_regex = PRETOKEN_BYTES_REGEX
 
-        # GPT-2 regex pattern as bytes
-        self.pretoken_regex = regex.compile(
-            rb"""'(?:[sdmt]|ll|ve|re)|\ ?\p{L}+|\ ?\p{N}+|\ ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-        )
 
     @classmethod
     def from_file(cls, vocab_file: str, merges_file: str, special_tokens: list[str] | None = None):
