@@ -136,7 +136,7 @@ def main():
     try:
         with Pool(num_processes) as pool:
             results = []
-            for result in tqdm(pool.imap_unordered(tokenize_chunk, chunk_args), 
+            for result in tqdm(pool.imap(tokenize_chunk, chunk_args), 
                              total=len(chunk_args), 
                              desc="Tokenizing chunks"):
                 results.append(result)

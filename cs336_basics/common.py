@@ -1,9 +1,18 @@
 import json
+import regex
+from multiprocessing import Pool
+from collections.abc import Iterator
+
+from cs336_basics.pretokenization_example import find_chunk_boundaries
 
 VocabElt = bytes
 Pretoken = tuple[VocabElt, ...]
 VocabPair = tuple[VocabElt, VocabElt]
 
+# GPT-2 regex pattern as bytes
+PRETOKEN_BYTES_REGEX = regex.compile(
+    rb"""'(?:[sdmt]|ll|ve|re)|\ ?\p{L}+|\ ?\p{N}+|\ ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+)
 
 def serialize_vocab(vocab: dict[int, bytes], filepath: str) -> None:
     """Serialize vocab to JSON with bytes as UTF-8 strings where possible."""
