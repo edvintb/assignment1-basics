@@ -11,6 +11,8 @@ from torch import Tensor
 
 from cs336_basics.train_bpe import train_bpe
 from cs336_basics.tokenizer import Tokenizer
+from cs336_basics.model import Linear, Embedding, MultiheadAttention, RMSNorm, RotaryPositionalEmbedding, ScaledDotProductAttention, SwiGLU, TransformerBlock
+from cs336_basics.utils import softmax
 
 
 def run_linear(
@@ -104,6 +106,12 @@ def run_swiglu(
 
     mlp = SwiGLU(d_model=d_model, d_ff=d_ff)
 
+    print(f"w1_weight shape: {w1_weight.shape}")
+    print(f"w2_weight shape: {w2_weight.shape}")
+    print(f"w3_weight shape: {w3_weight.shape}")
+    breakpoint()
+
+    # Load weights from state dict
     mlp.load_state_dict({
         'w1.weight': w1_weight,
         'w2.weight': w2_weight,
@@ -131,7 +139,7 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    return scaled_dotproduct_attention(Q, K, V, mask)
+    return ScaledDotProductAttention()(Q, K, V, mask)
 
 
 def run_multihead_self_attention(
@@ -171,10 +179,10 @@ def run_multihead_self_attention(
     )
 
     mh_attention.load_state_dict({
-        'q_proj.weight': q_proj_weight,
-        'k_proj.weight': k_proj_weight,
-        'v_proj.weight': v_proj_weight,
-        'output_proj.weight': o_proj_weight,
+        'q_proj_weight': q_proj_weight,
+        'k_proj_weight': k_proj_weight,
+        'v_proj_weight': v_proj_weight,
+        'o_proj_weight': o_proj_weight,
     })
 
     return mh_attention(in_features)
@@ -222,16 +230,17 @@ def run_multihead_self_attention_with_rope(
         num_heads=num_heads,
         theta=theta,
         max_seq_len=max_seq_len,
+        token_positions=token_positions,
     )
 
     mh_attention.load_state_dict({
-        'q_proj.weight': q_proj_weight,
-        'k_proj.weight': k_proj_weight,
-        'v_proj.weight': v_proj_weight,
-        'output_proj.weight': o_proj_weight,
+        'q_proj_weight': q_proj_weight,
+        'k_proj_weight': k_proj_weight,
+        'v_proj_weight': v_proj_weight,
+        'o_proj_weight': o_proj_weight,
     })
 
-    return mh_attention(in_features, token_positions)
+    return mh_attention(in_features)
 
 
 def run_rope(
@@ -339,7 +348,34 @@ def run_transformer_block(
         theta=theta,
     )
 
-    transformer_block.load_state_dict(weights)
+    # Create a mapping from state dict keys to provided weights
+    state_dict_mapping = {}
+
+    # Map attention weights
+    if 'attn.q_proj.weight' in weights:
+        state_dict_mapping['attn.q_proj_weight'] = weights['attn.q_proj.weight']
+    if 'attn.k_proj.weight' in weights:
+        state_dict_mapping['attn.k_proj_weight'] = weights['attn.k_proj.weight']
+    if 'attn.v_proj.weight' in weights:
+        state_dict_mapping['attn.v_proj_weight'] = weights['attn.v_proj.weight']
+    if 'attn.output_proj.weight' in weights:
+        state_dict_mapping['attn.o_proj_weight'] = weights['attn.output_proj.weight']
+
+    # Map FFN weights
+    if 'ffn.w1.weight' in weights:
+        state_dict_mapping['ffn.w1'] = weights['ffn.w1.weight']
+    if 'ffn.w2.weight' in weights:
+        state_dict_mapping['ffn.w2'] = weights['ffn.w2.weight']
+    if 'ffn.w3.weight' in weights:
+        state_dict_mapping['ffn.w3'] = weights['ffn.w3.weight']
+
+    # Map norm weights
+    if 'ln1.weight' in weights:
+        state_dict_mapping['norm0.weight'] = weights['ln1.weight']
+    if 'ln2.weight' in weights:
+        state_dict_mapping['norm1.weight'] = weights['ln2.weight']
+
+    transformer_block.load_state_dict(state_dict_mapping)
 
     return transformer_block(in_features)
 

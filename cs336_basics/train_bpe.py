@@ -12,7 +12,7 @@ from typing import NamedTuple
 import regex as re  # use regex instead of re
 from tqdm import tqdm
 
-from cs336_basics.common import perform_merge
+from cs336_basics.common import perform_merge, PRETOKEN_BYTES_REGEX
 from cs336_basics.pretokenization_example import find_chunk_boundaries
 
 # setup the type aliases
@@ -258,13 +258,10 @@ def pretokenize_chunk(chunk: bytes, special_tokens: list[bytes]) -> Counter[byte
     # Split the chunk using the pattern
     documents = special_token_regex.split(chunk)
 
-    # GPT-2 regex pattern as bytes
-    pretoken_regex = re.compile(rb"""'(?:[sdmt]|ll|ve|re)|\ ?\p{L}+|\ ?\p{N}+|\ ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
-
     # count up all the pretokens
     pretoken_to_count: Counter[bytes] = Counter()
     for doc in documents:
-        pretoken_to_count += Counter(match.group() for match in pretoken_regex.finditer(doc))
+        pretoken_to_count += Counter(match.group() for match in PRETOKEN_BYTES_REGEX.finditer(doc))
 
     return pretoken_to_count
 
