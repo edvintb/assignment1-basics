@@ -7,12 +7,11 @@ from collections import Counter, defaultdict
 from collections.abc import Iterator
 from multiprocessing import Pool
 from pstats import SortKey
-from typing import NamedTuple
+import regex as re
 
-import regex as re  # use regex instead of re
 from tqdm import tqdm
 
-from cs336_basics.common import perform_merge, PRETOKEN_BYTES_REGEX
+from cs336_basics.common import perform_merge, get_byte_corpus_for_chunk, PretokenArgs
 from cs336_basics.pretokenization_example import find_chunk_boundaries
 
 # setup the type aliases
@@ -21,27 +20,12 @@ VocabElt = bytes
 Pretoken = tuple[VocabElt, ...]
 VocabPair = tuple[VocabElt, VocabElt]
 
-class PretokenArgs(NamedTuple):
-    path: str | os.PathLike
-    special_tokens: list[bytes]
-    start: int
-    end: int
+
 
 def pretoken2pairs(pretoken: Pretoken) -> Iterator[VocabPair]:
     """Given a pretoken, return a set of all byte pairs in the pretoken."""
     return zip(pretoken[:-1], pretoken[1:])
 
-def get_byte_corpus_for_chunk(args: PretokenArgs) -> Counter[Pretoken]:
-    """Given a chunk of bytes and special tokens as bytes, return a Counter of byte tuples."""
-    path, special_tokens, start, end = args
-    with open(path, "rb") as f:
-        f.seek(start)
-        chunk = f.read(end - start)
-        pretoken_to_count: Counter[bytes] = pretokenize_chunk(chunk, special_tokens)
-        byte_corpus: Counter[Pretoken] = Counter(
-            {tuple(bytes([byte]) for byte in key): value for key, value in pretoken_to_count.items()}
-        )
-        return byte_corpus
 
 
 def train_bpe(
@@ -91,13 +75,12 @@ def train_bpe(
 
     # prepare arguments for pretokenization
     special_tokens_bytes: list[bytes] = [token.encode("utf-8") for token in special_tokens]
+    special_tokens_joined = b"|".join(special_tokens_bytes)
+    special_token_regex = re.compile(special_tokens_joined)
+
     pretoken_args = [
-        PretokenArgs(
-            path=input_path,
-            special_tokens=special_tokens_bytes,
-            start=start,
-            end=end
-        ) for start, end in zip(boundaries[:-1], boundaries[1:])
+        PretokenArgs(path=input_path, special_token_regex=special_token_regex, start=start, end=end)
+        for start, end in zip(boundaries[:-1], boundaries[1:])
     ]
 
     # pretokenize in parallel
@@ -246,24 +229,6 @@ def updates_for_pair(
     return corpus, pair_to_count, pair_to_pretokens
 
 
-def pretokenize_chunk(chunk: bytes, special_tokens: list[bytes]) -> Counter[bytes]:
-    """
-    Given bytes and special tokens as bytes, return a list of documents,
-    where each document is a list of byte tokens.
-    """
-    # Join special tokens with | directly as bytes
-    special_token_bytes = b"|".join(special_tokens)
-    special_token_regex = re.compile(special_token_bytes)
-
-    # Split the chunk using the pattern
-    documents = special_token_regex.split(chunk)
-
-    # count up all the pretokens
-    pretoken_to_count: Counter[bytes] = Counter()
-    for doc in documents:
-        pretoken_to_count += Counter(match.group() for match in PRETOKEN_BYTES_REGEX.finditer(doc))
-
-    return pretoken_to_count
 
 def serialize_vocab(vocab: dict[int, bytes], filepath: str) -> None:
     """Serialize vocab to JSON with bytes as UTF-8 strings where possible."""
@@ -330,31 +295,47 @@ def deserialize_merges(filepath: str) -> list[tuple[bytes, bytes]]:
     
     return merges
 
+
+def json_file(string):
+    if not string.endswith('.json'):
+        raise argparse.ArgumentTypeError(f"File must end with .json, got: {string}")
+    return string
+
+def text_file(string):
+    if not string.endswith('.txt'):
+        raise argparse.ArgumentTypeError(f"File must end with .txt, got: {string}")
+    return string
+
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_path", type=str, required=True)
+    parser.add_argument("--dataset", type=text_file, required=True)
     parser.add_argument("--vocab_size", type=int, required=True)
     parser.add_argument("--special_tokens", type=str, nargs="*", default=[])
+    parser.add_argument("--vocab-output", type=json_file, required=True, help="Path to output vocabulary JSON file")
+    parser.add_argument("--merges-output", type=json_file, required=True, help="Path to output merges JSON file")
     parser.add_argument("--profile", action="store_true", help="Enable profiling")
     return parser.parse_args(args)
 
 def main(args: argparse.Namespace) -> None:
     print("Training BPE tokenizer...")
-    print(f"Input path: {args.input_path}")
+    print(f"Dataset: {args.dataset}")
     print(f"Vocab size: {args.vocab_size:,}")
     print(f"Special tokens: {args.special_tokens}")
+    print(f"Vocab output: {args.vocab_output}")
+    print(f"Merges output: {args.merges_output}")
+
     vocab, merges = train_bpe(
-        input_path=args.input_path, vocab_size=args.vocab_size, special_tokens=args.special_tokens
+        input_path=args.dataset, vocab_size=args.vocab_size, special_tokens=args.special_tokens
     )
 
     print("Done training BPE tokenizer.")
 
     # serialize the vocab as a json file
-    serialize_vocab(vocab, "vocab.json")
+    serialize_vocab(vocab, args.vocab_output)
 
     # serialize the merges as a json file
-    serialize_merges(merges, "merges.json")
+    serialize_merges(merges, args.merges_output)
 
 def main_profile(args: argparse.Namespace) -> None:
     # Create a Profile object
@@ -363,11 +344,11 @@ def main_profile(args: argparse.Namespace) -> None:
 
     # Run the code to profile
     print("Training BPE tokenizer...")
-    print(f"Input path: {args.input_path}")
+    print(f"Dataset: {args.dataset}")
     print(f"Vocab size: {args.vocab_size:,}")
     print(f"Special tokens: {args.special_tokens}")
     vocab, merges = train_bpe(
-        input_path=args.input_path, vocab_size=args.vocab_size, special_tokens=args.special_tokens
+        input_path=args.dataset, vocab_size=args.vocab_size, special_tokens=args.special_tokens
     )
 
     print("Done training BPE tokenizer.")

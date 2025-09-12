@@ -3,24 +3,6 @@ from typing import Optional, Callable
 
 import torch as th
 
-def cosine_lr_schedule(
-    it: int,
-    max_learning_rate: float,
-    min_learning_rate: float,
-    warmup_iters: int,
-    cosine_cycle_iters: int,
-):
-    assert it >= 0
-
-    if it < warmup_iters:
-        return (it / warmup_iters) * max_learning_rate
-
-    if it <= cosine_cycle_iters:
-        cos_term = math.cos((it - warmup_iters) * math.pi / (cosine_cycle_iters - warmup_iters))
-        return (min_learning_rate + 0.5 * (1 + cos_term) * (max_learning_rate - min_learning_rate))
-
-    return min_learning_rate
-
 
 class SGD(th.optim.Optimizer):
     def __init__(self, params, lr=1e-3):
