@@ -1,10 +1,20 @@
+from collections import Counter
 import os
 import json
+import regex as re
+from typing import NamedTuple
 import regex
 from multiprocessing import Pool
 from collections.abc import Iterator
 
 from cs336_basics.pretokenization_example import find_chunk_boundaries
+
+class PretokenArgs(NamedTuple):
+    path: str | os.PathLike
+    special_token_regex: regex.Pattern
+    start: int
+    end: int
+
 
 VocabElt = bytes
 Pretoken = tuple[VocabElt, ...]
@@ -14,6 +24,32 @@ VocabPair = tuple[VocabElt, VocabElt]
 PRETOKEN_BYTES_REGEX = regex.compile(
     rb"""'(?:[sdmt]|ll|ve|re)|\ ?\p{L}+|\ ?\p{N}+|\ ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 )
+
+def pretokenize_chunk(chunk: bytes, special_token_regex: regex.Pattern) -> Counter[bytes]:
+    """
+    Given bytes and special tokens as bytes, return a list of documents,
+    where each document is a list of byte tokens.
+    """
+    # Split the chunk using the pattern
+    documents = special_token_regex.split(chunk)
+
+    # count up all the pretokens
+    pretoken_to_count: Counter[bytes] = Counter()
+    for doc in documents:
+        pretoken_to_count += Counter(match.group() for match in PRETOKEN_BYTES_REGEX.finditer(doc))
+
+    return pretoken_to_count
+
+def get_byte_corpus_for_chunk(args: PretokenArgs) -> Counter[Pretoken]:
+    """Given a chunk of bytes and special tokens as bytes, return a Counter of byte tuples."""
+    with open(args.path, "rb") as f:
+        f.seek(args.start)
+        chunk = f.read(args.end - args.start)
+        pretoken_to_count: Counter[bytes] = pretokenize_chunk(chunk, args.special_token_regex)
+        byte_corpus: Counter[Pretoken] = Counter(
+            {tuple(bytes([byte]) for byte in key): value for key, value in pretoken_to_count.items()}
+        )
+        return byte_corpus
 
 def perform_merge(pretoken: Pretoken, pair_to_merge: VocabPair) -> Pretoken:
     """Merge a pair of bytes in a pretoken."""
@@ -115,8 +151,11 @@ def pretokenize(input_path: str, special_tokens: list[str]) -> Pretoken:
 
     # prepare arguments for pretokenization
     special_tokens_bytes: list[bytes] = [token.encode("utf-8") for token in special_tokens]
+    # Join special tokens with | directly as bytes
+    special_tokens_joined = b"|".join(special_tokens)
+    special_token_regex = re.compile(special_tokens_joined)
     pretoken_args = [
-        PretokenArgs(path=input_path, special_tokens=special_tokens_bytes, start=start, end=end)
+        PretokenArgs(path=input_path, special_token_regex=special_token_regex, start=start, end=end)
         for start, end in zip(boundaries[:-1], boundaries[1:])
     ]
 

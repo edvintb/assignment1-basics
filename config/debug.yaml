@@ -1,0 +1,39 @@
+# Debug Configuration for Quick Testing
+# Minimal settings for fast iteration and debugging
+
+# Data Configuration
+data:
+  dataset_path: "data/tokenized_dataset.npy"
+  vocab_size: 1000
+  context_length: 128
+  batch_size: 4
+
+# Model Architecture (Tiny model for fast training)
+model:
+  d_model: 128
+  d_ff: 512
+  num_heads: 4
+  num_layers: 2
+  rope_theta: 10000.0
+
+# Training Configuration
+training:
+  device: "cpu"
+  num_steps: 100  # Very few steps for debugging
+  
+  # Learning Rate Schedule
+  max_learning_rate: 1e-3
+  min_learning_rate: 1e-4
+  warmup_iters: 10
+  cosine_cycle_iters: 80
+  
+  # Regularization
+  max_l2_norm: 1.0
+  weight_decay: 0.01
+  
+  # Checkpointing
+  checkpoint_path: "checkpoints/debug_model"
+  save_every: 50
+  
+  # Logging
+  log_every: 10

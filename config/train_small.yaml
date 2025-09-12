@@ -1,0 +1,39 @@
+# Small Transformer Configuration for Training
+# This config is suitable for experimentation and debugging
+
+# Data Configuration
+data:
+  dataset_path: "data/tokenized_dataset.npy"
+  vocab_size: 10000
+  context_length: 512
+  batch_size: 32
+
+# Model Architecture
+model:
+  d_model: 512
+  d_ff: 2048
+  num_heads: 8
+  num_layers: 6
+  rope_theta: 10000.0
+
+# Training Configuration
+training:
+  device: "cpu"  # Change to "cuda" if GPU available
+  num_steps: 10000
+  
+  # Learning Rate Schedule
+  max_learning_rate: 3e-4
+  min_learning_rate: 3e-5
+  warmup_iters: 1000
+  cosine_cycle_iters: 8000
+  
+  # Regularization
+  max_l2_norm: 10000.0
+  weight_decay: 0.01
+  
+  # Checkpointing
+  checkpoint_path: "checkpoints/small_model"
+  save_every: 1000
+  
+  # Logging
+  log_every: 100

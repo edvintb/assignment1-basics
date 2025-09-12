@@ -9,10 +9,12 @@ import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
+from cs336_basics.io_functions import get_batch, load_checkpoint, save_checkpoint
 from cs336_basics.train_bpe import train_bpe
 from cs336_basics.tokenizer import Tokenizer
-from cs336_basics.model import Linear, Embedding, MultiheadAttention, RMSNorm, RotaryPositionalEmbedding, ScaledDotProductAttention, SwiGLU, TransformerBlock
-from cs336_basics.utils import softmax
+from cs336_basics.model import Linear, Embedding, MultiheadAttention, RMSNorm, RotaryPositionalEmbedding, SwiGLU, TransformerBlock, TransformerLM
+from cs336_basics.functions import cosine_lr_schedule, cross_entropy, gradient_clipping, scaled_dotproduct_attention, silu
+from cs336_basics.optimizers import SGD, AdamW
 
 
 def run_linear(
@@ -106,12 +108,6 @@ def run_swiglu(
 
     mlp = SwiGLU(d_model=d_model, d_ff=d_ff)
 
-    print(f"w1_weight shape: {w1_weight.shape}")
-    print(f"w2_weight shape: {w2_weight.shape}")
-    print(f"w3_weight shape: {w3_weight.shape}")
-    breakpoint()
-
-    # Load weights from state dict
     mlp.load_state_dict({
         'w1.weight': w1_weight,
         'w2.weight': w2_weight,
@@ -139,7 +135,7 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    return ScaledDotProductAttention()(Q, K, V, mask)
+    return scaled_dotproduct_attention(Q, K, V, mask)
 
 
 def run_multihead_self_attention(
@@ -179,10 +175,10 @@ def run_multihead_self_attention(
     )
 
     mh_attention.load_state_dict({
-        'q_proj_weight': q_proj_weight,
-        'k_proj_weight': k_proj_weight,
-        'v_proj_weight': v_proj_weight,
-        'o_proj_weight': o_proj_weight,
+        'q_proj.weight': q_proj_weight,
+        'k_proj.weight': k_proj_weight,
+        'v_proj.weight': v_proj_weight,
+        'output_proj.weight': o_proj_weight,
     })
 
     return mh_attention(in_features)
@@ -234,10 +230,10 @@ def run_multihead_self_attention_with_rope(
     )
 
     mh_attention.load_state_dict({
-        'q_proj_weight': q_proj_weight,
-        'k_proj_weight': k_proj_weight,
-        'v_proj_weight': v_proj_weight,
-        'o_proj_weight': o_proj_weight,
+        'q_proj.weight': q_proj_weight,
+        'k_proj.weight': k_proj_weight,
+        'v_proj.weight': v_proj_weight,
+        'output_proj.weight': o_proj_weight,
     })
 
     return mh_attention(in_features)
@@ -348,34 +344,7 @@ def run_transformer_block(
         theta=theta,
     )
 
-    # Create a mapping from state dict keys to provided weights
-    state_dict_mapping = {}
-
-    # Map attention weights
-    if 'attn.q_proj.weight' in weights:
-        state_dict_mapping['attn.q_proj_weight'] = weights['attn.q_proj.weight']
-    if 'attn.k_proj.weight' in weights:
-        state_dict_mapping['attn.k_proj_weight'] = weights['attn.k_proj.weight']
-    if 'attn.v_proj.weight' in weights:
-        state_dict_mapping['attn.v_proj_weight'] = weights['attn.v_proj.weight']
-    if 'attn.output_proj.weight' in weights:
-        state_dict_mapping['attn.o_proj_weight'] = weights['attn.output_proj.weight']
-
-    # Map FFN weights
-    if 'ffn.w1.weight' in weights:
-        state_dict_mapping['ffn.w1'] = weights['ffn.w1.weight']
-    if 'ffn.w2.weight' in weights:
-        state_dict_mapping['ffn.w2'] = weights['ffn.w2.weight']
-    if 'ffn.w3.weight' in weights:
-        state_dict_mapping['ffn.w3'] = weights['ffn.w3.weight']
-
-    # Map norm weights
-    if 'ln1.weight' in weights:
-        state_dict_mapping['norm0.weight'] = weights['ln1.weight']
-    if 'ln2.weight' in weights:
-        state_dict_mapping['norm1.weight'] = weights['ln2.weight']
-
-    transformer_block.load_state_dict(state_dict_mapping)
+    transformer_block.load_state_dict(weights)
 
     return transformer_block(in_features)
 
@@ -459,8 +428,19 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    transformer_lm = TransformerLM(
+        vocab_size=vocab_size,
+        context_length=context_length,
+        d_model=d_model,
+        num_heads=num_heads,
+        num_layers=num_layers,
+        d_ff=d_ff,
+        rope_theta=rope_theta,
+    )
 
+    transformer_lm.load_state_dict(weights)
+
+    return transformer_lm(in_indices)
 
 def run_rmsnorm(
     d_model: int,
@@ -503,8 +483,7 @@ def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
         Float[Tensor,"..."]: of with the same shape as `in_features` with the output of applying
         SiLU to each element.
     """
-    raise NotImplementedError
-
+    return silu(in_features)
 
 def run_get_batch(
     dataset: npt.NDArray, batch_size: int, context_length: int, device: str
@@ -526,7 +505,7 @@ def run_get_batch(
         is the sampled input sequences, and the second tuple item is the corresponding
         language modeling labels.
     """
-    raise NotImplementedError
+    return get_batch(dataset, batch_size, context_length, device)
 
 
 def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, " ..."]:
@@ -560,7 +539,7 @@ def run_cross_entropy(
     Returns:
         Float[Tensor, ""]: The average cross-entropy loss across examples.
     """
-    raise NotImplementedError
+    return cross_entropy(inputs, targets)
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
@@ -572,14 +551,14 @@ def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm:
 
     The gradients of the parameters (parameter.grad) should be modified in-place.
     """
-    raise NotImplementedError
+    return gradient_clipping(parameters, max_l2_norm)
 
 
 def get_adamw_cls() -> Any:
     """
     Returns a torch.optim.Optimizer that implements AdamW.
     """
-    raise NotImplementedError
+    return AdamW
 
 
 def run_get_lr_cosine_schedule(
@@ -607,7 +586,7 @@ def run_get_lr_cosine_schedule(
     Returns:
         Learning rate at the given iteration under the specified schedule.
     """
-    raise NotImplementedError
+    return cosine_lr_schedule(it, max_learning_rate, min_learning_rate, warmup_iters, cosine_cycle_iters)
 
 
 def run_save_checkpoint(
@@ -626,7 +605,7 @@ def run_save_checkpoint(
             we've completed.
         out (str | os.PathLike | BinaryIO | IO[bytes]): Path or file-like object to serialize the model, optimizer, and iteration to.
     """
-    raise NotImplementedError
+    return save_checkpoint(model, optimizer, iteration, out)
 
 
 def run_load_checkpoint(
@@ -647,7 +626,7 @@ def run_load_checkpoint(
     Returns:
         int: the previously-serialized number of iterations.
     """
-    raise NotImplementedError
+    return load_checkpoint(src, model, optimizer)
 
 
 def get_tokenizer(
