@@ -1,0 +1,39 @@
+# Large Transformer Configuration for Training
+# This config is suitable for serious training runs
+
+# Data Configuration
+data:
+  dataset_path: "data/tokenized_dataset.npy"
+  vocab_size: 32000
+  context_length: 2048
+  batch_size: 16  # Smaller batch size for larger model
+
+# Model Architecture
+model:
+  d_model: 1024
+  d_ff: 4096
+  num_heads: 16
+  num_layers: 12
+  rope_theta: 10000.0
+
+# Training Configuration
+training:
+  device: "cuda"
+  num_steps: 100000
+  
+  # Learning Rate Schedule
+  max_learning_rate: 1e-4
+  min_learning_rate: 1e-5
+  warmup_iters: 5000
+  cosine_cycle_iters: 90000
+  
+  # Regularization
+  max_l2_norm: 1.0
+  weight_decay: 0.1
+  
+  # Checkpointing
+  checkpoint_path: "checkpoints/large_model"
+  save_every: 5000
+  
+  # Logging
+  log_every: 500
