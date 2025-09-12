@@ -167,3 +167,4 @@ data/
 *.ipynb
 *.json
 uv.lock
+*.png
