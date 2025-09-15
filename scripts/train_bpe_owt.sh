@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-cd "$(dirname "$0")/../" # Go to project root directory
-
-echo "Running BPE training on TinyStories..."
+echo "Training BPE training on Open Web Text..."
 
 uv run cs336_basics/train_bpe.py \
-    --input_path data/owt_train.txt \
+    --dataset data/owt_train.txt \
     --vocab_size 32000 \
-    --special_tokens "<|endoftext|>"
+    --special_tokens "<|endoftext|>" \
+    --vocab-output data/owt-train.vocab.json \
+    --merges-output data/owt-train.merges.json
