@@ -13,8 +13,8 @@ from cs336_basics.io_functions import get_batch, load_checkpoint, save_checkpoin
 from cs336_basics.train_bpe import train_bpe
 from cs336_basics.tokenizer import Tokenizer
 from cs336_basics.model import Linear, Embedding, MultiheadAttention, RMSNorm, RotaryPositionalEmbedding, SwiGLU, TransformerBlock, TransformerLM
-from cs336_basics.functions import cosine_lr_schedule, cross_entropy, gradient_clipping, scaled_dotproduct_attention, silu
-from cs336_basics.optimizers import SGD, AdamW
+from cs336_basics.functions import cross_entropy, gradient_clipping, scaled_dotproduct_attention, silu
+from cs336_basics.optimizers import SGD, AdamW, cosine_lr_schedule
 
 
 def run_linear(
@@ -226,7 +226,6 @@ def run_multihead_self_attention_with_rope(
         num_heads=num_heads,
         theta=theta,
         max_seq_len=max_seq_len,
-        token_positions=token_positions,
     )
 
     mh_attention.load_state_dict({
@@ -236,7 +235,7 @@ def run_multihead_self_attention_with_rope(
         'output_proj.weight': o_proj_weight,
     })
 
-    return mh_attention(in_features)
+    return mh_attention(in_features, token_positions)
 
 
 def run_rope(
