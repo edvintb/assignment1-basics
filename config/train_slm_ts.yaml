@@ -3,37 +3,37 @@
 
 # Data Configuration
 data:
-  dataset_path: "data/tokenized_dataset.npy"
+  dataset_path: "data/TinyStoriesV2-GPT4-valid_tokenized.npz"
   vocab_size: 10000
-  context_length: 512
+  context_length: 256
   batch_size: 32
 
 # Model Architecture
 model:
-  d_model: 512
-  d_ff: 2048
-  num_heads: 8
-  num_layers: 6
+  d_model: 768
+  d_ff: 1344
+  num_heads: 16
+  num_layers: 4
   rope_theta: 10000.0
 
 # Training Configuration
 training:
-  device: "cpu"  # Change to "cuda" if GPU available
-  num_steps: 10000
+  device: "mps"  # Change to "cuda" if GPU available
+  num_steps: 20000
   
   # Learning Rate Schedule
-  max_learning_rate: 3e-4
-  min_learning_rate: 3e-5
+  max_learning_rate: 3.0e-4
+  min_learning_rate: 3.0e-5
   warmup_iters: 1000
-  cosine_cycle_iters: 8000
+  cosine_cycle_iters: 18000
   
   # Regularization
-  max_l2_norm: 10000.0
+  max_l2_norm: 100.0
   weight_decay: 0.01
   
   # Checkpointing
   checkpoint_path: "checkpoints/small_model"
-  save_every: 1000
+  save_every: 100
   
   # Logging
-  log_every: 100
+  log_every: 20

@@ -93,7 +93,7 @@ class SwiGLU(th.nn.Module):
         return self.w2(a2)
 
 class RotaryPositionalEmbedding(th.nn.Module):
-    def __init__(self, theta: float, d_k: int, max_seq_len: int, device: th.device | None = None):
+    def __init__(self, theta: float, d_k: int, max_seq_len: int):
         assert d_k % 2 == 0, "d_k must be even"
         super().__init__()
         # all the even values smaller than d_k
@@ -113,24 +113,22 @@ class RotaryPositionalEmbedding(th.nn.Module):
         self.register_buffer('cos', self.cos_theta_ik, persistent=False)
         self.register_buffer('sin', self.sin_theta_ik, persistent=False)
     
-    def forward(self, x: Float[th.Tensor, '... seq d_k'], token_positions: Int[th.Tensor, '... seq']) -> Float[th.Tensor, '... d_k']:
+    def forward(self, x: Float[th.Tensor, '... num_heads d_k'], token_positions: Int[th.Tensor, '... seq']) -> Float[th.Tensor, '... num_heads d_k']:
         # pick cos and sin values for all token positions in batch
-        cos_vals = self.cos_theta_ik[:, token_positions]
-        sin_vals = self.sin_theta_ik[:, token_positions]
+        # Use registered buffers which are automatically moved to device
+        cos_vals = self.cos[:, token_positions]
+        sin_vals = self.sin[:, token_positions]
 
         # arrange cos and sin vals into a 2x2 matrix
-        rotation_matrices = rearrange(
-            [cos_vals, -sin_vals, sin_vals, cos_vals],
-            '(rows cols) half_d ... -> ... half_d rows cols',
-            rows=2, cols=2
-        )
+        rotation_matrices = th.stack([cos_vals, -sin_vals, sin_vals, cos_vals], dim=0)
+        rotation_matrices = rearrange(rotation_matrices, '(rows cols) half_d ... -> ... half_d rows cols', rows=2, cols=2).to(x.device)
 
-        # split the x-vector into pairs
+        # split the key dimension into pairs
         x_pairs = rearrange(x, '... (half_d two) -> ... half_d two', two=2)
 
         # contract over the col dim to peform the rotation for each vector
         # we need the explictly named half_d dimension to align the tensors
-        result = einsum(rotation_matrices, x_pairs, '... half_d i j, ... half_d j -> ... half_d i')
+        result = einsum(rotation_matrices, x_pairs, '... half_d i j, ... num_heads half_d j -> ... num_heads half_d i')
 
         # flatten the pairs into a single vector
         result = rearrange(result, '... half_d i -> ... (half_d i)')
@@ -144,7 +142,6 @@ class MultiheadAttention(th.nn.Module):
         num_heads: int,
         theta: float | None = None,
         max_seq_len: int | None = None,
-        token_positions: Int[th.Tensor, "... seq"] | None = None,
     ):
         super().__init__()
         assert d_model % num_heads == 0
@@ -156,40 +153,30 @@ class MultiheadAttention(th.nn.Module):
         self.output_proj = Linear(d_model, num_heads * self.d_v)
         if theta is not None and max_seq_len is not None:
             self.rope = RotaryPositionalEmbedding(theta=theta, d_k=self.d_k, max_seq_len=max_seq_len)
-            self.token_positions = token_positions
         else:
             self.rope = None
     
-    def forward(self, in_features: Float[th.Tensor, "... seq d_model"]):
+    def forward(self, in_features: Float[th.Tensor, "... d_model"], token_positions: Int[th.Tensor, "... seq"] | None = None):
         # project queries, keys, and values
         q_heads = self.q_proj(in_features)
-        q_heads = rearrange(q_heads, '... seq (num_heads d_k) -> ... num_heads seq d_k', d_k=self.d_k)
+        q_heads = rearrange(q_heads, '... (num_heads d_k) -> ... num_heads d_k', d_k=self.d_k)
         k_heads = self.k_proj(in_features)
-        k_heads = rearrange(k_heads, '... seq (num_heads d_k) -> ... num_heads seq d_k', d_k=self.d_k)
+        k_heads = rearrange(k_heads, '... (num_heads d_k) -> ... num_heads d_k', d_k=self.d_k)
         v_heads = self.v_proj(in_features)
-        v_heads = rearrange(v_heads, '... seq (num_heads d_v) -> ... num_heads seq d_v', d_v=self.d_v)
+        v_heads = rearrange(v_heads, '... (num_heads d_v) -> ... num_heads d_v', d_v=self.d_v)
 
         # apply RoPE to queries and keys
-        if self.rope is not None:
-            if self.token_positions is None:
-                seq_len = q_heads.shape[-2]  # Get sequence length from input
-                # assume token positions are sequential if not provided
-                token_positions = th.arange(seq_len, device=q_heads.device)
-                # Expand to match batch dimensions using expand
-                batch_shape = q_heads.shape[:-3]  # All dims except num_heads, seq, d_k
-                token_positions = token_positions.expand(*batch_shape, seq_len)
-            else:
-                token_positions = self.token_positions
+        if self.rope is not None and token_positions is not None:
             q_heads = self.rope(q_heads, token_positions)
             k_heads = self.rope(k_heads, token_positions)
 
         # create a causal mask
         causal_mask = th.tril(
-            th.ones(q_heads.shape[-2], k_heads.shape[-2], dtype=th.bool, device=q_heads.device), diagonal=0
+            th.ones(q_heads.shape[-3], k_heads.shape[-3], dtype=th.bool, device=q_heads.device), diagonal=0
         )
         
         # compute attention
-        attention_heads: Float[th.Tensor, '... num_heads seq d_v'] = scaled_dotproduct_attention(
+        attention_heads: Float[th.Tensor, '... num_heads d_v'] = scaled_dotproduct_attention(
             Q=q_heads,
             K=k_heads,
             V=v_heads,
@@ -198,7 +185,7 @@ class MultiheadAttention(th.nn.Module):
 
         # project back into model dimension
         return self.output_proj(
-            rearrange(attention_heads,'... num_heads seq d_v -> ... seq (num_heads d_v)')
+            rearrange(attention_heads, '... num_heads d_v -> ... (num_heads d_v)')
         )
 
 class TransformerBlock(th.nn.Module):
@@ -209,24 +196,23 @@ class TransformerBlock(th.nn.Module):
         num_heads: int,
         theta: float | None = None,
         max_seq_len: int | None = None,
-        token_positions: Int[th.Tensor, "... seq"] | None = None,
     ):
         super().__init__()
         self.d_model = d_model
         self.d_ff = d_ff
         self.num_heads = num_heads
-        self.attn = MultiheadAttention(d_model, num_heads, theta, max_seq_len, token_positions)
+        self.attn = MultiheadAttention(d_model, num_heads, theta, max_seq_len)
         self.ffn = SwiGLU(d_model, d_ff)
         self.ln1 = RMSNorm(d_model)
         self.ln2 = RMSNorm(d_model)
 
-    def forward(self, x: Float[th.Tensor, "... seq d_model"]):
+    def forward(self, x: Float[th.Tensor, "... seq d_model"], token_positions: Int[th.Tensor, "... seq"] | None = None):
         y0 = self.ln1(x)      # rms norm x * w / sqrt(x**2 + eps)
-        y0 = self.attn(y0)    # attention
-        y0 += x               # residual connection 
+        y0 = self.attn(y0, token_positions)    # attention
+        y0 += x               # residual connection
         y1 = self.ln2(y0)     # rms norm x * w / sqrt(x**2 + eps)
         y1 = self.ffn(y1)     # feedforward
-        y1 += y0              # residual connection 
+        y1 += y0              # residual connection
         return y1
 
 
@@ -256,7 +242,6 @@ class TransformerLM(th.nn.Module):
                 num_heads=num_heads,
                 theta=rope_theta,
                 max_seq_len=context_length,
-                token_positions=None
             ) for _ in range(num_layers)
         ])
 
@@ -266,13 +251,24 @@ class TransformerLM(th.nn.Module):
         # we need an output layer
         self.lm_head = Linear(vocab_size, d_model)
 
-    def forward(self, token_ids: Int[th.Tensor, 'batch sequence']):
+    def forward(self, token_ids: Int[th.Tensor, 'batch sequence'], token_positions: Int[th.Tensor, 'batch sequence'] | None = None):
+        # Move inputs to the same device as the model
+        device = next(self.parameters()).device
+        token_ids = token_ids.to(device)
+
+        # Create token positions if not provided
+        if token_positions is None:
+            batch_size, seq_len = token_ids.shape
+            token_positions = th.arange(seq_len, device=device).expand(batch_size, seq_len)
+        else:
+            token_positions = token_positions.to(device)
+
         # embedd token ids
         x = self.token_embeddings(token_ids)
 
         # run through transformer blocks
         for layer in self.layers:
-            x = layer(x)
+            x = layer(x, token_positions)
 
         # normalize and project
         x = self.ln_final(x)
