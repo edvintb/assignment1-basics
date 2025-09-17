@@ -83,6 +83,17 @@ def main() -> None:
     device = torch.device(config.training.device)
     model = model.to(device)
 
+    # Create model config for checkpointing
+    model_config = {
+        "vocab_size": config.data.vocab_size,
+        "context_length": config.data.context_length,
+        "d_model": config.model.d_model,
+        "num_layers": config.model.num_layers,
+        "num_heads": config.model.num_heads,
+        "d_ff": config.model.d_ff,
+        "rope_theta": config.model.rope_theta,
+    }
+
     # instantiate optimizer
     optimizer = AdamW(
         model.parameters(),
@@ -134,7 +145,11 @@ def main() -> None:
         optimizer.step()
 
         step_end_time = time.time()
-        print(f"Step {step} took {step_end_time - step_start_time} seconds.")
+
+        print(f"Step: {step:03d}, Loss: {loss:.4f}, Time: {step_end_time - step_start_time:.2f}s")
+
+        if step % config.training.save_every == 0 and step > 0:
+            save_checkpoint(model, optimizer, step, model_config, config.training.checkpoint_path)
 
 
 if __name__ == "__main__":
