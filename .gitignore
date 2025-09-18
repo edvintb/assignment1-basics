@@ -168,3 +168,10 @@ data/
 uv.lock
 *.png
 **/checkpoints/
+
+# data/
+data/
+*.ipynb
+*.json
+uv.lock
+*.png
