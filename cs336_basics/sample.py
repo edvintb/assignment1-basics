@@ -4,9 +4,9 @@ import time
 
 import torch as th
 from jaxtyping import Int
-from loguru import logger
+from cs336_basics.tokenizer import Tokenizer
 
-from cs336_basics.io_functions import load_checkpoint_for_inference
+from cs336_basics.io_functions import load_model_from_checkpoint
 from cs336_basics.model import TransformerLM
 
 def get_args() -> argparse.Namespace:
@@ -36,15 +36,11 @@ def generate(
 
 def main(args) -> None:
     # instantiate model from checkpoint
-    logger.info(f"Loading model from checkpoint {args.checkpoint}")
-    model, config, iteration = load_model_from_checkpoint(args.checkpoint)
-
-    # log the config, checkpoint and iteration
-    logger.info(f"Iteration: {iteration}")
-    logger.info(f"Config: {config}")
+    print(f"Loading model from checkpoint {args.checkpoint}")
+    model = load_model_from_checkpoint(args.checkpoint)
 
     # load tokenizer from vocab and merges files
-    logger.info(f"Loading tokenizer from vocab and merges files...")
+    print(f"Loading tokenizer from vocab and merges files...")
 
     # parametrize the tokenizer...
     tokenizer = Tokenizer.from_file(
@@ -67,7 +63,7 @@ def main(args) -> None:
         generated_token_ids = generate(model, token_ids, token_positions, args.max_tokens_per_reponse)
         generated_text = tokenizer.decode(generated_token_ids[0].tolist())
         end_time = time.time()
-        logger.info(f"Generated text in {end_time - start_time:.2f}s:\n {generated_text}")
+        print(f"Generated text in {end_time - start_time:.2f}s:\n {generated_text}")
 
     
 

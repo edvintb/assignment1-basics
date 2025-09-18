@@ -1,13 +1,14 @@
 import argparse
 import time
+import yaml
 import numpy as np
 import numpy.typing as npt
 import torch
 
 from cs336_basics.functions import cross_entropy, gradient_clipping
-from cs336_basics.io_functions import get_batch
+from cs336_basics.io_functions import get_batch, save_checkpoint
 from cs336_basics.model import TransformerLM
-from cs336_basics.optimizers import AdamW, get_lr_cosine_schedule
+from cs336_basics.optimizers import AdamW, cosine_lr_schedule
 
 
 def get_args() -> argparse.Namespace:
@@ -20,7 +21,6 @@ def get_args() -> argparse.Namespace:
     args = parser.parse_args()
 
     # Load YAML config
-    import yaml
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
 
@@ -55,18 +55,14 @@ def get_args() -> argparse.Namespace:
 
     return dict_to_namespace(config)
 
-def load_data(
-    dataset_path: str
-) -> npt.NDArray[np.int32]:
-    return 
-    
-
 
 def main() -> None:
     config = get_args()
 
-    # load the data
-    data: npt.NDArray[np.int32] = np.memmap(config.data.dataset_path, dtype=np.int32, mode="r")
+    # load the data (mmap to support large dataset)
+    # Load NPZ file with memory mapping for large datasets
+    npz_data = np.load(config.data.dataset_path, mmap_mode='r')
+    data: npt.NDArray[np.int32] = npz_data['tokens']
 
     # instantiate model
     model = TransformerLM(
@@ -79,12 +75,8 @@ def main() -> None:
         rope_theta=config.model.rope_theta,
     )
 
-    # Move model to device
-    device = torch.device(config.training.device)
-    model = model.to(device)
-
-    # Create model config for checkpointing
-    model_config = {
+    # create config dict for checkpointing
+    config_dict: dict[str, int | float] = {
         "vocab_size": config.data.vocab_size,
         "context_length": config.data.context_length,
         "d_model": config.model.d_model,
@@ -93,6 +85,10 @@ def main() -> None:
         "d_ff": config.model.d_ff,
         "rope_theta": config.model.rope_theta,
     }
+
+    # Move model to device
+    device = torch.device(config.training.device)
+    model = model.to(device)
 
     # instantiate optimizer
     optimizer = AdamW(
@@ -108,12 +104,12 @@ def main() -> None:
         step_start_time = time.time()
 
         # Get the learning rate for this step
-        current_lr = get_lr_cosine_schedule(
-            config.training.max_learning_rate,
-            config.training.min_learning_rate,
-            config.training.warmup_iters,
-            config.training.cosine_cycle_iters,
-            step
+        current_lr = cosine_lr_schedule(
+            it=step,
+            max_learning_rate=config.training.max_learning_rate,
+            min_learning_rate=config.training.min_learning_rate,
+            warmup_iters=config.training.warmup_iters,
+            cosine_cycle_iters=config.training.cosine_cycle_iters,
         )
 
         # Apply the learning rate to all parameter groups
@@ -149,8 +145,14 @@ def main() -> None:
         print(f"Step: {step:03d}, Loss: {loss:.4f}, Time: {step_end_time - step_start_time:.2f}s")
 
         if step % config.training.save_every == 0 and step > 0:
-            save_checkpoint(model, optimizer, step, model_config, config.training.checkpoint_path)
+            save_checkpoint(
+                model=model,
+                optimizer=optimizer,
+                iteration=step,
+                config=config_dict,
+                out=config.training.checkpoint_path
+            )
 
 
 if __name__ == "__main__":
-    main(get_args())
+    main()

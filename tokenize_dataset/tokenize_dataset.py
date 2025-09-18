@@ -110,7 +110,7 @@ def main():
     
     try:
         with open(args.text_file, 'rb') as f:
-            boundaries = find_chunk_boundaries(f, num_processes, special_token_bytes)
+            boundaries = find_chunk_boundaries(f, 10 * num_processes, special_token_bytes)
         print(f"Split file into {len(boundaries) - 1} chunks")
     except Exception as e:
         print(f"Error finding chunk boundaries: {e}", file=sys.stderr)
@@ -134,8 +134,8 @@ def main():
     
     # Process chunks in parallel
     try:
+        results = []
         with Pool(num_processes) as pool:
-            results = []
             for result in tqdm(pool.imap_unordered(tokenize_chunk, chunk_args), 
                              total=len(chunk_args), 
                              desc="Tokenizing chunks"):
@@ -148,7 +148,7 @@ def main():
         
         # Concatenate all token lists
         all_token_ids = []
-        for chunk_id, token_ids in results:
+        for _, token_ids in results:
             all_token_ids.extend(token_ids)
         
         print(f"Tokenized into {len(all_token_ids):,} tokens total")

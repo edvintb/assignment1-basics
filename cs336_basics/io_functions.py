@@ -5,6 +5,8 @@ import numpy as np
 import numpy.typing as npt
 import torch as th
 
+from cs336_basics.model import TransformerLM
+
 
 def get_batch(
     x: npt.NDArray,
@@ -29,14 +31,14 @@ def save_checkpoint(
     model: th.nn.Module,
     optimizer: th.optim.Optimizer,
     iteration: int,
-    model_config: dict,
+    config: dict,
     out: str | os.PathLike | BinaryIO | IO[bytes],
 ):
     th.save({
         "model": model.state_dict(),
         "optimizer": optimizer.state_dict(),
         "iteration": iteration,
-        "model_config": model_config,
+        "config": config,
     }, out)
 
 def load_checkpoint(
@@ -51,33 +53,16 @@ def load_checkpoint(
 
 def load_model_from_checkpoint(
     src: str | os.PathLike | BinaryIO | IO[bytes],
-) -> tuple[th.nn.Module, dict, int]:
-    """
-    Load a model directly from checkpoint without needing a pre-existing model instance.
-
-    Args:
-        src: Path to checkpoint file
-
-    Returns:
-        tuple of (model, model_config, iteration)
-    """
+) -> TransformerLM:
     checkpoint = th.load(src)
-    model_config = checkpoint["model_config"]
-    iteration = checkpoint["iteration"]
-
-    # Create model from saved config
-    from cs336_basics.model import TransformerLM
+    config = checkpoint["config"]
     model = TransformerLM(
-        vocab_size=model_config["vocab_size"],
-        context_length=model_config["context_length"],
-        d_model=model_config["d_model"],
-        num_layers=model_config["num_layers"],
-        num_heads=model_config["num_heads"],
-        d_ff=model_config["d_ff"],
-        rope_theta=model_config["rope_theta"],
+        vocab_size=config["vocab_size"],
+        context_length=config["context_length"],
+        d_model=config["d_model"],
+        num_layers=config["num_layers"],
+        num_heads=config["num_heads"],
+        d_ff=config["d_ff"],
+        rope_theta=config["rope_theta"],
     )
-
-    # Load the saved weights
-    model.load_state_dict(checkpoint["model"])
-
-    return model, model_config, iteration
+    return model
