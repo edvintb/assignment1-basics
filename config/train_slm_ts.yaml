@@ -7,7 +7,7 @@ data:
   dataset_path: "data/TinyStoriesV2-GPT4-valid_tokenized.npz"
   vocab_size: 10_000
   context_length: 256
-  batch_size: 32
+  batch_size: 64
 
 # Model Architecture
 model:
