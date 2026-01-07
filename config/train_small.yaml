@@ -3,7 +3,7 @@
 
 # Data Configuration
 data:
-  dataset_path: "data/tokenized_dataset.npy"
+  dataset_path: "data/TinyStoriesV2-GPT4-train_tokenized.npz"
   vocab_size: 10000
   context_length: 512
   batch_size: 32

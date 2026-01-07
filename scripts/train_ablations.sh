@@ -5,7 +5,7 @@
 set -e  # Exit on error
 
 # Configuration
-CONFIG_FILE="${CONFIG_FILE:-config/train_small.yaml}"
+CONFIG_FILE="${CONFIG_FILE:-config/train_slm_ts.yaml}"
 BASE_BRANCH="main"
 
 # Array of ablations: branch_name:experiment_name
