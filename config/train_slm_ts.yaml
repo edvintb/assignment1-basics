@@ -1,39 +1,48 @@
 # Small Transformer Configuration for Training
 # This config is suitable for experimentation and debugging
+# Parameters match the first experiment section in assignment 1
 
 # Data Configuration
 data:
   dataset_path: "data/TinyStoriesV2-GPT4-valid_tokenized.npz"
-  vocab_size: 10000
+  vocab_size: 10_000
   context_length: 256
   batch_size: 32
 
 # Model Architecture
 model:
-  d_model: 768
+  d_model: 512
   d_ff: 1344
   num_heads: 16
   num_layers: 4
-  rope_theta: 10000.0
+  rope_theta: 10_000.0
 
 # Training Configuration
 training:
-  device: "mps"  # Change to "cuda" if GPU available
-  num_steps: 20000
-  
+  device: "cuda"
+  num_steps: 40_000
+
   # Learning Rate Schedule
   max_learning_rate: 3.0e-4
   min_learning_rate: 3.0e-5
-  warmup_iters: 1000
-  cosine_cycle_iters: 18000
-  
+  warmup_iters: 1_000
+  cosine_cycle_iters: 39_000
+
+  # decimal point required for yaml parser to parse scientific notation as float
+
+  # Optimizer (AdamW)
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_eps: 1.0e-8 
+
   # Regularization
-  max_l2_norm: 100.0
+  max_l2_norm: 4.0
+  gradient_clip_eps: 1.0e-6
   weight_decay: 0.01
-  
+
   # Checkpointing
   checkpoint_path: "checkpoints/small_model"
   save_every: 100
-  
+
   # Logging
   log_every: 20

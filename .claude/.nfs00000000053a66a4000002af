@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run:*)",
+      "Bash(chmod:*)",
+      "Bash(python3:*)",
+      "Bash(./scripts/test_grid_search.sh:*)",
+      "Bash(cat:*)",
+      "Bash(python scripts/plot_grid_search.py:*)",
+      "Bash(uv pip install:*)",
+      "Bash(./scripts/train_bs128_sweep.sh:*)"
+    ]
+  }
+}

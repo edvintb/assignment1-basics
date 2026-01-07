@@ -41,6 +41,23 @@ def save_checkpoint(
         "config": config,
     }, out)
 
+
+def save_checkpoint_from_state_dicts(
+    model_state_dict: dict,
+    optimizer_state_dict: dict,
+    iteration: int,
+    config: dict,
+    out: str | os.PathLike | BinaryIO | IO[bytes],
+):
+    """Save checkpoint from pre-extracted state dictionaries (async-safe)."""
+    th.save({
+        "model": model_state_dict,
+        "optimizer": optimizer_state_dict,
+        "iteration": iteration,
+        "config": config,
+    }, out)
+
+
 def load_checkpoint(
     src: str | os.PathLike | BinaryIO | IO[bytes],
     model: th.nn.Module,
@@ -65,4 +82,5 @@ def load_model_from_checkpoint(
         d_ff=config["d_ff"],
         rope_theta=config["rope_theta"],
     )
+    model.load_state_dict(checkpoint["model"])
     return model

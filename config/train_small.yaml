@@ -20,20 +20,26 @@ model:
 training:
   device: "cpu"  # Change to "cuda" if GPU available
   num_steps: 10000
-  
+
   # Learning Rate Schedule
   max_learning_rate: 3e-4
   min_learning_rate: 3e-5
   warmup_iters: 1000
   cosine_cycle_iters: 8000
-  
+
+  # Optimizer (AdamW)
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_eps: 1.0e-8
+
   # Regularization
   max_l2_norm: 10000.0
+  gradient_clip_eps: 1.0e-6
   weight_decay: 0.01
-  
+
   # Checkpointing
   checkpoint_path: "checkpoints/small_model"
   save_every: 1000
-  
+
   # Logging
   log_every: 100

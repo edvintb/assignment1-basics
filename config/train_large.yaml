@@ -20,20 +20,26 @@ model:
 training:
   device: "cuda"
   num_steps: 100000
-  
+
   # Learning Rate Schedule
   max_learning_rate: 1e-4
   min_learning_rate: 1e-5
   warmup_iters: 5000
   cosine_cycle_iters: 90000
-  
+
+  # Optimizer (AdamW)
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_eps: 1.0e-8
+
   # Regularization
   max_l2_norm: 1.0
+  gradient_clip_eps: 1.0e-6
   weight_decay: 0.1
-  
+
   # Checkpointing
   checkpoint_path: "checkpoints/large_model"
   save_every: 5000
-  
+
   # Logging
   log_every: 500

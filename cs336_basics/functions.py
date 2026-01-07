@@ -53,8 +53,10 @@ def cross_entropy(logits: Float[th.Tensor, '... vocab_size'], targets: Int[th.Te
 def gradient_clipping(
     params: Iterable[th.nn.Parameter],
     max_l2_norm: float,
-    eps: float = 1e-6
-):
+    eps: float = 1e-6,
+    step: int | None = None,
+    log_every: int = 100,
+) -> tuple[float, float]:
     assert max_l2_norm > 0, "Max L2 norm must be positive"
     norm = 0
     for param in params:
@@ -63,13 +65,20 @@ def gradient_clipping(
 
         norm += th.sum(th.pow(param.grad, 2))
 
-    norm = math.sqrt(norm)
+    norm_before = math.sqrt(norm)
 
-    if norm < max_l2_norm:
-        return
+    if log_every > 0 and step is not None and step % log_every == 0:
+        print(f"gradient norm is: {norm_before:.2f}")
+
+    if norm_before < max_l2_norm:
+        return norm_before, norm_before
+
+    print(f"Clipping gradients with norm {norm_before:.2f} to {max_l2_norm:.2f}")
 
     for param in params:
         if param.grad is None:
             continue
 
-        param.grad.data *= (max_l2_norm / (norm + eps))
+        param.grad.data *= (max_l2_norm / (norm_before + eps))
+
+    return norm_before, max_l2_norm
