@@ -63,8 +63,10 @@ def main() -> None:
     config = get_args()
 
     # Initialize wandb
+    wandb_name = os.environ.get("WANDB_NAME", None)
     wandb.init(
         project="llm_experiments",
+        name=wandb_name,
         config={
             "data": vars(config.data),
             "model": vars(config.model),
