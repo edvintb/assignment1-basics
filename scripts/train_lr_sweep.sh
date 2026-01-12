@@ -1,14 +1,21 @@
 #!/bin/bash
-# Learning rate sweep for batch size 128
-# Usage: ./scripts/train_bs128_sweep.sh [config_file]
+# Learning rate sweep for a given batch size
+# Usage: ./scripts/train_bs128_sweep.sh <batch_size> [config_file]
+# Example: ./scripts/train_bs128_sweep.sh 128 config/train_slm_ts.yaml
 
 set +e  # Don't exit on error - we want to continue even if some runs fail
 
-# Default config file
-CONFIG=${1:-config/train_slm_ts.yaml}
+# Batch size (required parameter)
+if [ -z "$1" ]; then
+    echo "Error: Batch size parameter is required"
+    echo "Usage: $0 <batch_size> [config_file]"
+    echo "Example: $0 128 config/train_slm_ts.yaml"
+    exit 1
+fi
+BATCH_SIZE=$1
 
-# Batch size
-BATCH_SIZE=128
+# Config file (optional, defaults to train_slm_ts.yaml)
+CONFIG=${2:-config/train_slm_ts.yaml}
 
 # Learning rates to test (same as original grid search)
 LEARNING_RATES=(1.0e-5 5.0e-5 1.0e-4 3.0e-4 5.0e-4 1.0e-3)
@@ -22,7 +29,7 @@ mkdir -p "$RESULTS_DIR"
 # Results file (we'll append to existing)
 RESULTS_FILE="${RESULTS_DIR}/grid_search_results.csv"
 
-echo "Starting batch size 128 learning rate sweep with config: $CONFIG"
+echo "Starting batch size $BATCH_SIZE learning rate sweep with config: $CONFIG"
 echo "Learning rates: ${LEARNING_RATES[@]}"
 echo "Total experiments: ${#LEARNING_RATES[@]}"
 echo "Results will be appended to: $RESULTS_FILE"
@@ -96,7 +103,7 @@ done
 
 echo ""
 echo "========================================"
-echo "Batch size 128 sweep completed!"
+echo "Batch size $BATCH_SIZE sweep completed!"
 echo "Results appended to: $RESULTS_FILE"
 echo "========================================"
 echo ""
