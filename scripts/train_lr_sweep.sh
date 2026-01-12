@@ -17,8 +17,8 @@ BATCH_SIZE=$1
 # Config file (optional, defaults to train_slm_ts.yaml)
 CONFIG=${2:-config/train_slm_ts.yaml}
 
-# Learning rates to test (same as original grid search)
-LEARNING_RATES=(1.0e-5 5.0e-5 1.0e-4 3.0e-4 5.0e-4 1.0e-3)
+# Learning rates to test (original grid search + higher values)
+LEARNING_RATES=(1.0e-5 5.0e-5 1.0e-4 3.0e-4 5.0e-4 1.0e-3 3.0e-3 5.0e-3 1.0e-2)
 
 export WANDB_PROJECT="llm_experiments"
 
