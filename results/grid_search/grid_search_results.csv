@@ -1,0 +1,7 @@
+128,1.0e-5,1e-06,N/A,N/A,141,checkpoints/grid_search/bs_128_lr_1_0eneg5
+128,1.0e-5,1e-06,3.0219,3.0293,0,checkpoints/grid_search/bs_128_lr_1_0eneg5
+128,5.0e-5,5e-06,3.4003,3.4313,0,checkpoints/grid_search/bs_128_lr_5_0eneg5
+128,1.0e-4,1e-05,0.6155,0.6262,0,checkpoints/grid_search/bs_128_lr_1_0eneg4
+128,3.0e-4,3e-05,1.0778,1.0754,0,checkpoints/grid_search/bs_128_lr_3_0eneg4
+128,5.0e-4,5e-05,0.7075,0.7083,0,checkpoints/grid_search/bs_128_lr_5_0eneg4
+128,1.0e-3,0.0001,0.2945,0.2943,0,checkpoints/grid_search/bs_128_lr_1_0eneg3

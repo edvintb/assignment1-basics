@@ -73,7 +73,6 @@ def main() -> None:
             "training": vars(config.training),
         }
     )
-
     # load the data (mmap to support large dataset)
     # Load NPZ file with memory mapping for large datasets
     npz_data = np.load(config.data.dataset_path, mmap_mode='r')

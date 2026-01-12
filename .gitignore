@@ -169,9 +169,8 @@ uv.lock
 *.png
 **/checkpoints/
 
-# data/
-data/
-*.ipynb
-*.json
-uv.lock
-*.png
+# Wandb experiment tracking
+wandb/
+
+# NFS temporary files
+.nfs*
