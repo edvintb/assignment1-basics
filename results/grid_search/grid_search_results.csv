@@ -5,3 +5,14 @@
 128,3.0e-4,3e-05,1.0778,1.0754,0,checkpoints/grid_search/bs_128_lr_3_0eneg4
 128,5.0e-4,5e-05,0.7075,0.7083,0,checkpoints/grid_search/bs_128_lr_5_0eneg4
 128,1.0e-3,0.0001,0.2945,0.2943,0,checkpoints/grid_search/bs_128_lr_1_0eneg3
+256,1.0e-5,1e-06,3.0673,3.0604,0,checkpoints/grid_search/bs_256_lr_1_0eneg5
+256,5.0e-5,5e-06,3.4954,3.4672,130,checkpoints/grid_search/bs_256_lr_5_0eneg5
+256,1.0e-5,1e-06,3.2503,3.3061,0,checkpoints/grid_search/bs_256_lr_1_0eneg5
+256,5.0e-5,5e-06,2.4189,2.4252,0,checkpoints/grid_search/bs_256_lr_5_0eneg5
+256,1.0e-4,1e-05,2.5529,2.5477,0,checkpoints/grid_search/bs_256_lr_1_0eneg4
+256,3.0e-4,3e-05,1.6793,1.6645,0,checkpoints/grid_search/bs_256_lr_3_0eneg4
+256,5.0e-4,5e-05,2.0863,2.0613,0,checkpoints/grid_search/bs_256_lr_5_0eneg4
+256,1.0e-3,0.0001,1.5404,1.5553,0,checkpoints/grid_search/bs_256_lr_1_0eneg3
+256,3.0e-3,0.0003,2.0922,2.1046,0,checkpoints/grid_search/bs_256_lr_3_0eneg3
+256,5.0e-3,0.0005,1.9885,2.0123,0,checkpoints/grid_search/bs_256_lr_5_0eneg3
+256,1.0e-2,0.001,2.0720,2.0431,0,checkpoints/grid_search/bs_256_lr_1_0eneg2

@@ -74,7 +74,6 @@ def main() -> None:
         }
     )
     # load the data (mmap to support large dataset)
-    # Load NPZ file with memory mapping for large datasets
     npz_data = np.load(config.data.dataset_path, mmap_mode='r')
     data: npt.NDArray[np.int32] = npz_data['tokens']
 
